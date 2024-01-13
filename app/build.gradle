@@ -30,6 +30,11 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    packagingOptions {
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/io.netty.versions.properties'
+    }
 }
 
 dependencies {
@@ -41,5 +46,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    implementation 'redis.clients:jedis:3.6.0'
+
+    // Lettuce Core for Redis, replace with the version compatible with your setup
+    implementation 'io.lettuce:lettuce-core:6.3.1.RELEASE'
+
+    // Gson for JSON handling
+    implementation 'com.google.code.gson:gson:2.8.9'
 }

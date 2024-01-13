@@ -20,8 +20,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.text.set
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import delta.Peter.Chi.WasteWatcher.databinding.ActivityMainBinding
+import java.text.ParseException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.text.SimpleDateFormat
+import java.util.Locale
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -120,10 +124,24 @@ class MainActivity : AppCompatActivity() {
                 // Generate a unique key for the new entry
                 val newEntryKey = "product:${UUID.randomUUID()}"
 
+                // Define the format for the date string
+                val outputDateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+                var formattedDate = ""
+
+                try {
+                    // Parse the date from the input string
+                    val inputDate = binding.expirationDateInput.text.toString()
+                    val inputDateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+                    val date = inputDateFormat.parse(inputDate)
+                    formattedDate = outputDateFormat.format(date)
+                } catch (e: ParseException) {
+                    Log.e("MainActivity", "Error parsing date", e)
+                }
+
                 // Define the new entry data using Gson
                 val newEntryObject = JsonObject()
                 newEntryObject.addProperty("UPC", binding.skuInput.text.toString())
-                newEntryObject.addProperty("Date", binding.expirationDateInput.text.toString())
+                newEntryObject.addProperty("Date", formattedDate)
                 newEntryObject.addProperty("Lot Number", binding.batchLotInput.text.toString())
                 val newEntryJson = Gson().toJson(newEntryObject)
 
@@ -136,7 +154,7 @@ class MainActivity : AppCompatActivity() {
                     Log.d("RedisTest", "New entry added with key $newEntryKey: $newEntryJson")
 
                     // Prepare a user-friendly string
-                    val displayText = "Last entry added:\nUPC: ${binding.skuInput.text}\nDate: ${binding.expirationDateInput.text}\nLot Number: ${binding.batchLotInput.text}"
+                    val displayText = "Last entry added:\nUPC: ${binding.skuInput.text}\nDate: $formattedDate\nLot Number: ${binding.batchLotInput.text}"
 
                     // Update the TextView with the user-friendly string
                     runOnUiThread {
@@ -152,8 +170,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, "Failed to add item", Toast.LENGTH_SHORT).show()
                     }
                 }
-            } catch (e: Exception)
-            {
+            } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
                     Toast.makeText(this@MainActivity, "Error adding item", Toast.LENGTH_SHORT).show()
@@ -173,9 +190,14 @@ class MainActivity : AppCompatActivity() {
 
         val datePickerDialog = DatePickerDialog(this,
             { _, selectedYear, selectedMonth, selectedDayOfMonth ->
-                binding.expirationDateInput.setText("${selectedMonth + 1}/$selectedDayOfMonth/$selectedYear")
+                // Format the date to include leading zeros for month and day
+                val selectedDate = Calendar.getInstance()
+                selectedDate.set(selectedYear, selectedMonth, selectedDayOfMonth)
+                val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+                binding.expirationDateInput.setText(dateFormat.format(selectedDate.time))
             }, year, month, day)
 
         datePickerDialog.show()
     }
+
 }

@@ -162,7 +162,8 @@ class MainActivity : AppCompatActivity() {
         val day = calendar.get(Calendar.DAY_OF_MONTH)
 
         val expirationDateInput = findViewById<TextInputEditText>(R.id.expiration_date_input)
-        expirationDateInput.setText(String.format("%d-%02d-%02d", year, month + 1, day))
+        // Format the date as MM/dd/yyyy
+        expirationDateInput.setText(String.format("%02d/%02d/%d", month + 1, day, year))
     }
 
     // Function to start the camera and initialize image capture

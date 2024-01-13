@@ -3,6 +3,7 @@ package delta.Peter.Chi.WasteWatcher
 import android.Manifest
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.app.DatePickerDialog
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -10,11 +11,18 @@ import android.speech.RecognizerIntent
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import io.lettuce.core.RedisClient
+import io.lettuce.core.api.StatefulRedisConnection
+import java.util.*
+import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.TextInputEditText
+import androidx.core.text.set
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import delta.Peter.Chi.WasteWatcher.databinding.ActivityMainBinding
@@ -231,5 +239,75 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         // Shutdown the camera executor when the activity is destroyed
         cameraExecutor.shutdown()
+    }
+
+    private fun addItem() {
+        Thread {
+            // Initialize Redis client
+            val redisClient = RedisClient.create("redis://default:FJXMsdIeaWspO8n0rbq84opxJE11dQku@redis-12838.c1.us-central1-2.gce.cloud.redislabs.com:12838")
+            val connection: StatefulRedisConnection<String, String> = redisClient.connect()
+            val syncCommands = connection.sync()
+
+            try {
+                // Generate a unique key for the new entry
+                val newEntryKey = "product:${UUID.randomUUID()}"
+
+                // Define the new entry data using Gson
+                val newEntryObject = JsonObject()
+                newEntryObject.addProperty("UPC", binding.skuInput.text.toString())
+                newEntryObject.addProperty("Date", binding.expirationDateInput.text.toString())
+                newEntryObject.addProperty("Lot Number", binding.batchLotInput.text.toString())
+                val newEntryJson = Gson().toJson(newEntryObject)
+
+                // Try to add the new entry to the database as JSON
+                val setResult = syncCommands.set(newEntryKey, newEntryJson)
+
+                // Check if the new entry was added successfully
+                if ("OK" == setResult) {
+                    // Log the new entry action
+                    Log.d("RedisTest", "New entry added with key $newEntryKey: $newEntryJson")
+
+                    // Prepare a user-friendly string
+                    val displayText = "Last entry added:\nUPC: ${binding.skuInput.text}\nDate: ${binding.expirationDateInput.text}\nLot Number: ${binding.batchLotInput.text}"
+
+                    // Update the TextView with the user-friendly string
+                    runOnUiThread {
+                        binding.textView.text = displayText
+                        binding.skuInput.text.clear()
+                        binding.expirationDateInput.text.clear()
+                        binding.batchLotInput.text.clear()
+                    }
+                } else {
+                    // Handle the failure case
+                    Log.e("RedisTest", "Failed to add new entry: $newEntryJson")
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Failed to add item", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception)
+            {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Error adding item", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                connection.close()
+                redisClient.shutdown()
+            }
+        }.start()
+    }
+
+    private fun showDatePicker() {
+        val calendar = Calendar.getInstance()
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        val datePickerDialog = DatePickerDialog(this,
+            { _, selectedYear, selectedMonth, selectedDayOfMonth ->
+                binding.expirationDateInput.setText("${selectedMonth + 1}/$selectedDayOfMonth/$selectedYear")
+            }, year, month, day)
+
+        datePickerDialog.show()
     }
 }

@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
     private fun parseDateFromVoiceInput(voiceInput: String): Date? {
         // Preprocess the input to remove ordinal suffixes
         val preprocessedInput = voiceInput.replace(Regex("(\\d)(st|nd|rd|th)"), "$1")
-        val potentialFormats = listOf("MMMM dd yyyy", "dd/MM/yyyy", "MM-dd-yyyy")
+        val potentialFormats = listOf("MMMM dd yyyy", "dd/MM/yyyy", "MM/dd/yyyy") // Include "MM/dd/yyyy" format
         var parsedDate: Date? = null
 
         for (format in potentialFormats) {
@@ -287,6 +287,20 @@ class MainActivity : AppCompatActivity() {
                 // Generate a unique key for the new entry
                 val newEntryKey = "product:${UUID.randomUUID()}"
 
+                // Define the format for the date string
+                val outputDateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+                var formattedDate = ""
+
+                try {
+                    // Parse the date from the input string
+                    val inputDate = binding.expirationDateInput.text.toString()
+                    val inputDateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+                    val date = inputDateFormat.parse(inputDate)
+                    formattedDate = outputDateFormat.format(date)
+                } catch (e: ParseException) {
+                    Log.e("MainActivity", "Error parsing date", e)
+                }
+
                 // Define the new entry data using Gson
                 val newEntryObject = JsonObject()
                 newEntryObject.addProperty("UPC", binding.skuInput.text.toString())
@@ -361,7 +375,7 @@ class MainActivity : AppCompatActivity() {
                 if (date != null && !date.before(currentDate)) {
                     return true
                 }
-            } catch (e: ParseException) {
+            } catch (e: java.text.ParseException) {
                 // Continue to the next format if parsing fails
             }
         }
@@ -377,8 +391,11 @@ class MainActivity : AppCompatActivity() {
 
         val datePickerDialog = DatePickerDialog(this,
             { _, selectedYear, selectedMonth, selectedDayOfMonth ->
-                // Format the date in "yyyy-MM-dd" format
-                binding.expirationDateInput.setText(String.format("%d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDayOfMonth))
+                // Format the date to include leading zeros for month and day
+                val selectedDate = Calendar.getInstance()
+                selectedDate.set(selectedYear, selectedMonth, selectedDayOfMonth)
+                val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+                binding.expirationDateInput.setText(dateFormat.format(selectedDate.time))
             }, year, month, day)
 
         datePickerDialog.show()

@@ -47,34 +47,44 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize the activity layout
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Initialize barcodeScanner and cameraExecutor
         barcodeScanner = BarcodeScanning.getClient()
         cameraExecutor = Executors.newSingleThreadExecutor()
 
+        // Check if camera permissions are granted, if not, request them
         if (allPermissionsGranted()) {
             startCamera()
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
+        // Set an OnClickListener for the camera preview to capture images
         binding.viewFinder.setOnClickListener {
             takePhotoAndProcessBarcode()
         }
 
+        // Set up date picker for expiration date input field
         setupDatePicker()
+
+        // Set up voice input button
         setupVoiceInput()
 
-        binding.submitButton.setOnClickListener{
+        // Set an OnClickListener for the submit button
+        binding.submitButton.setOnClickListener {
             addItem()
         }
 
+        // Set an OnClickListener for expiration date input field to show date picker
         binding.expirationDateInput.setOnClickListener {
             showDatePicker()
         }
     }
 
+    // Function to set up the date picker for expiration date input
     private fun setupDatePicker() {
         val expirationDateInput = findViewById<TextInputEditText>(R.id.expiration_date_input)
         expirationDateInput.setOnClickListener {
@@ -90,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to set up voice input
     private fun setupVoiceInput() {
         val voiceInputButton = findViewById<Button>(R.id.voice_input_button)
         voiceInputButton.setOnClickListener {
@@ -100,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to handle the result of voice input recognition
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VOICE_INPUT_REQUEST_CODE && resultCode == RESULT_OK) {
@@ -110,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to parse and set date from voice input
     private fun parseAndSetDateFromVoiceInput(voiceInput: String) {
         val parsedDate = parseDateFromVoiceInput(voiceInput)
         parsedDate?.let {
@@ -119,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to parse date from voice input
     private fun parseDateFromVoiceInput(voiceInput: String): Date? {
         // Preprocess the input to remove ordinal suffixes
         val preprocessedInput = voiceInput.replace(Regex("(\\d)(st|nd|rd|th)"), "$1")
@@ -139,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         return parsedDate
     }
 
+    // Function to update the date picker
     private fun updateDatePicker(date: Date) {
         val calendar = Calendar.getInstance()
         calendar.time = date
@@ -150,6 +165,7 @@ class MainActivity : AppCompatActivity() {
         expirationDateInput.setText(String.format("%d-%02d-%02d", year, month + 1, day))
     }
 
+    // Function to start the camera and initialize image capture
     private fun startCamera() {
         // Create a camera provider future
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -176,6 +192,7 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    // Function to capture a photo and process it for barcodes
     private fun takePhotoAndProcessBarcode() {
         val imageCapture = imageCapture ?: return
 
@@ -198,6 +215,7 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
+    // Function to process the captured image for barcodes
     private fun processImageForBarcode(uri: Uri) {
         try {
             // Create an InputImage from the captured photo's URI
@@ -222,11 +240,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to check if all required permissions are granted
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         // Check if all required permissions are granted
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    // Function to handle permission request results
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
@@ -243,12 +263,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Function to shut down the camera executor when the activity is destroyed
     override fun onDestroy() {
         super.onDestroy()
         // Shutdown the camera executor when the activity is destroyed
         cameraExecutor.shutdown()
     }
 
+    // Function to add a new item
     private fun addItem() {
         if (!validateInput()) {
             // If validation fails, show a Toast and return early
@@ -310,6 +332,7 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    // Function to validate user input for SKU and date
     private fun validateInput(): Boolean {
         val skuInput = binding.skuInput.text.toString()
         val dateInput = binding.expirationDateInput.text.toString()
@@ -320,21 +343,32 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Validate Date
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        sdf.isLenient = false
-        try {
-            val date = sdf.parse(dateInput)
-            val currentDate = Calendar.getInstance().time
-            if (date == null || date.before(currentDate)) {
-                return false
-            }
-        } catch (e: ParseException) {
+        if (dateInput.isEmpty()) {
             return false
         }
 
-        return true
+        val dateFormats = listOf("yyyy-MM-dd", "M/dd/yyyy")
+        return isValidDate(dateInput, dateFormats)
     }
 
+    private fun isValidDate(input: String, formats: List<String>): Boolean {
+        for (format in formats) {
+            val sdf = SimpleDateFormat(format, Locale.getDefault())
+            sdf.isLenient = false
+            try {
+                val date = sdf.parse(input)
+                val currentDate = Calendar.getInstance().time
+                if (date != null && !date.before(currentDate)) {
+                    return true
+                }
+            } catch (e: ParseException) {
+                // Continue to the next format if parsing fails
+            }
+        }
+        return false
+    }
+
+    // Function to show a date picker dialog for expiration date input
     private fun showDatePicker() {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
@@ -343,7 +377,8 @@ class MainActivity : AppCompatActivity() {
 
         val datePickerDialog = DatePickerDialog(this,
             { _, selectedYear, selectedMonth, selectedDayOfMonth ->
-                binding.expirationDateInput.setText("${selectedMonth + 1}/$selectedDayOfMonth/$selectedYear")
+                // Format the date in "yyyy-MM-dd" format
+                binding.expirationDateInput.setText(String.format("%d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDayOfMonth))
             }, year, month, day)
 
         datePickerDialog.show()

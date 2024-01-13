@@ -7,18 +7,16 @@
     tools:context=".MainActivity">
 
     <!-- Camera Preview for Barcode Scanning -->
-
-    <!-- Input for SKU -->
     <androidx.camera.view.PreviewView
         android:id="@+id/viewFinder"
         android:layout_width="0dp"
         android:layout_height="300dp"
         android:layout_marginTop="4dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Input for SKU -->
     <EditText
         android:id="@+id/sku_input"
         android:layout_width="0dp"
@@ -29,16 +27,35 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Input for Expiration Date -->
-    <EditText
-        android:id="@+id/expiration_date_input"
+    <!-- Updated Expiration Date Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/expiration_date_input_layout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:hint="Expiration Date"
         app:layout_constraintTop_toBottomOf="@id/sku_input"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toStartOf="@id/voice_input_button"
+        app:layout_constraintHorizontal_chainStyle="packed">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/expiration_date_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Expiration Date"
+            android:focusable="false" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Voice Input Button -->
+    <Button
+        android:id="@+id/voice_input_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🎙️"
+        app:layout_constraintTop_toTopOf="@id/expiration_date_input_layout"
+        app:layout_constraintBottom_toBottomOf="@id/expiration_date_input_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/expiration_date_input_layout" />
 
     <!-- Input for Batch/Lot Number -->
     <EditText
@@ -47,7 +64,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:hint="Batch/Lot Number (Optional)"
-        app:layout_constraintTop_toBottomOf="@id/expiration_date_input"
+        app:layout_constraintTop_toBottomOf="@id/expiration_date_input_layout"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -60,6 +77,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/batch_lot_input" />
+        app:layout_constraintTop_toBottomOf="@id/batch_lot_input" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,18 +1,26 @@
 package delta.Peter.Chi.WasteWatcher
 
 import android.Manifest
+import android.app.DatePickerDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.textfield.TextInputEditText
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import delta.Peter.Chi.WasteWatcher.databinding.ActivityMainBinding
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -25,31 +33,106 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
+        private const val VOICE_INPUT_REQUEST_CODE = 100
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inflate the layout and set it as the content view
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize the barcode scanner and camera executor
         barcodeScanner = BarcodeScanning.getClient()
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Check if camera permissions are granted, and start the camera if granted, else request permissions
         if (allPermissionsGranted()) {
             startCamera()
         } else {
-            requestPermissions(REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
-        // Set a click listener on the view finder to take a photo and process a barcode
         binding.viewFinder.setOnClickListener {
             takePhotoAndProcessBarcode()
         }
+
+        setupDatePicker()
+        setupVoiceInput()
+    }
+
+    private fun setupDatePicker() {
+        val expirationDateInput = findViewById<TextInputEditText>(R.id.expiration_date_input)
+        expirationDateInput.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH)
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            val datePickerDialog = DatePickerDialog(this, { _, selectedYear, selectedMonth, selectedDayOfMonth ->
+                expirationDateInput.setText(String.format("%d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDayOfMonth))
+            }, year, month, day)
+            datePickerDialog.show()
+        }
+    }
+
+    private fun setupVoiceInput() {
+        val voiceInputButton = findViewById<Button>(R.id.voice_input_button)
+        voiceInputButton.setOnClickListener {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            }
+            startActivityForResult(intent, VOICE_INPUT_REQUEST_CODE)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == VOICE_INPUT_REQUEST_CODE && resultCode == RESULT_OK) {
+            val matches = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!matches.isNullOrEmpty()) {
+                parseAndSetDateFromVoiceInput(matches[0])
+            }
+        }
+    }
+
+    private fun parseAndSetDateFromVoiceInput(voiceInput: String) {
+        val parsedDate = parseDateFromVoiceInput(voiceInput)
+        parsedDate?.let {
+            updateDatePicker(it)
+        } ?: run {
+            Toast.makeText(this, "Could not recognize the date format", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun parseDateFromVoiceInput(voiceInput: String): Date? {
+        // Preprocess the input to remove ordinal suffixes
+        val preprocessedInput = voiceInput.replace(Regex("(\\d)(st|nd|rd|th)"), "$1")
+        val potentialFormats = listOf("MMMM dd yyyy", "dd/MM/yyyy", "MM-dd-yyyy")
+        var parsedDate: Date? = null
+
+        for (format in potentialFormats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                sdf.isLenient = false
+                parsedDate = sdf.parse(preprocessedInput)
+                if (parsedDate != null) break
+            } catch (e: Exception) {
+                // Parsing failed for this format, try the next one
+            }
+        }
+
+        return parsedDate
+    }
+
+    private fun updateDatePicker(date: Date) {
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        val expirationDateInput = findViewById<TextInputEditText>(R.id.expiration_date_input)
+        expirationDateInput.setText(String.format("%d-%02d-%02d", year, month + 1, day))
     }
 
     private fun startCamera() {
@@ -131,6 +214,7 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 // If permissions are granted, start the camera

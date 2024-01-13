@@ -1,13 +1,14 @@
 package delta.Peter.Chi.WasteWatcher
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.Intent
-import android.app.DatePickerDialog
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.util.Log
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -16,19 +17,17 @@ import com.google.gson.JsonObject
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import java.util.*
-import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.ParseException
 import com.google.android.material.textfield.TextInputEditText
-import androidx.core.text.set
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import delta.Peter.Chi.WasteWatcher.databinding.ActivityMainBinding
 import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -66,6 +65,14 @@ class MainActivity : AppCompatActivity() {
 
         setupDatePicker()
         setupVoiceInput()
+
+        binding.submitButton.setOnClickListener{
+            addItem()
+        }
+
+        binding.expirationDateInput.setOnClickListener {
+            showDatePicker()
+        }
     }
 
     private fun setupDatePicker() {
@@ -178,6 +185,7 @@ class MainActivity : AppCompatActivity() {
         // Capture the image and process it for barcodes
         imageCapture.takePicture(photoFile, ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
+                @SuppressLint("RestrictedApi")
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = Uri.fromFile(photoFile.file)
                     processImageForBarcode(savedUri)
@@ -242,6 +250,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addItem() {
+        if (!validateInput()) {
+            // If validation fails, show a Toast and return early
+            Toast.makeText(this, "Invalid input. Please check the SKU and date.", Toast.LENGTH_SHORT).show()
+            return
+        }
         Thread {
             // Initialize Redis client
             val redisClient = RedisClient.create("redis://default:FJXMsdIeaWspO8n0rbq84opxJE11dQku@redis-12838.c1.us-central1-2.gce.cloud.redislabs.com:12838")
@@ -274,7 +287,7 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         binding.textView.text = displayText
                         binding.skuInput.text.clear()
-                        binding.expirationDateInput.text.clear()
+                        binding.expirationDateInput.text?.clear()
                         binding.batchLotInput.text.clear()
                     }
                 } else {
@@ -295,6 +308,31 @@ class MainActivity : AppCompatActivity() {
                 redisClient.shutdown()
             }
         }.start()
+    }
+
+    private fun validateInput(): Boolean {
+        val skuInput = binding.skuInput.text.toString()
+        val dateInput = binding.expirationDateInput.text.toString()
+
+        // Validate SKU - adjust the pattern as per your requirements
+        if (!skuInput.matches(Regex("^[a-zA-Z0-9]{5,12}$"))) {
+            return false
+        }
+
+        // Validate Date
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        sdf.isLenient = false
+        try {
+            val date = sdf.parse(dateInput)
+            val currentDate = Calendar.getInstance().time
+            if (date == null || date.before(currentDate)) {
+                return false
+            }
+        } catch (e: ParseException) {
+            return false
+        }
+
+        return true
     }
 
     private fun showDatePicker() {

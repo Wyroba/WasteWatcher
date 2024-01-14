@@ -323,9 +323,9 @@ class MainActivity : AppCompatActivity() {
                     // Update the TextView with the user-friendly string
                     runOnUiThread {
                         binding.textView.text = displayText
-                        binding.skuInput.text.clear()
+                        binding.skuInput.text?.clear()
                         binding.expirationDateInput.text?.clear()
-                        binding.batchLotInput.text.clear()
+                        binding.batchLotInput.text?.clear()
                     }
                 } else {
                     // Handle the failure case
